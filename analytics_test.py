@@ -72,6 +72,14 @@ def test_Predictor_calibrate_should_remove_words_with_wrong_letters_from_its_wor
     assert_that(predictor.wordbank).does_not_contain('caves')
 
 
+def test_Predictor_calibrate_should_remove_words_with_misplaced_letters(predictor: analytics.Predictor) -> None:
+    predictor.wordbank['caves'] = 999
+    predictor.wordbank['cares'] = 998
+    predictor.calibrate('cases', 'mcccc')
+    assert_that(predictor.wordbank).does_not_contain('cares')
+    assert_that(predictor.wordbank).does_not_contain('caves')
+
+
 WORDBANK = {
     'sades': 4045,
     'sages': 4025,

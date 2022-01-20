@@ -42,12 +42,17 @@ class Predictor:
 
     def calibrate(self, guess: str, game_response: str) -> None:
         wrong_letters = ''.join(set(letter for letter, state in zip(guess, game_response) if state == 'w'))
+        misplaced_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'm'}
 
         def contains_wrong_letters(word: str) -> bool:
             return any(letter in word for letter in wrong_letters)
 
+        def contains_misplaced_letters(word: str) -> bool:
+            return any(word[position] == misplaced_letter for position, misplaced_letter in misplaced_letters.items())
+
         self.wordbank = {
             word: rank
             for word,
-            rank in self.wordbank.items() if not (contains_wrong_letters(word) or guess == word)
+            rank in self.wordbank.items()
+            if not (contains_wrong_letters(word) or contains_misplaced_letters(word) or guess == word)
         }
