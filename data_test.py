@@ -50,15 +50,15 @@ WORD_LIST = dedent('''\
 
 # yapf: disable
 LETTER_FREQ_TABLE = {
-    **{letter: [0] * (1 + data.WORDLE_MAX_WORLD_LENGTH) for letter in string.ascii_lowercase},
+    **{letter: [0] * data.WORDLE_MAX_WORLD_LENGTH for letter in string.ascii_lowercase},
     **{
-        'e': [0, 1, 0, 2, 1, 4],
-        'h': [0, 1, 0, 0, 0, 1],
-        'n': [0, 0, 0, 0, 1, 1],
-        'r': [0, 0, 1, 0, 0, 1],
-        's': [1, 0, 0, 0, 0, 1],
-        't': [1, 0, 0, 0, 0, 1],
-        'v': [0, 0, 1, 0, 0, 1],
+        'e': [0, 1, 0, 2, 1],
+        'h': [0, 1, 0, 0, 0],
+        'n': [0, 0, 0, 0, 1],
+        'r': [0, 0, 1, 0, 0],
+        's': [1, 0, 0, 0, 0],
+        't': [1, 0, 0, 0, 0],
+        'v': [0, 0, 1, 0, 0],
     }
 }
 # yapf: enable

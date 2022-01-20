@@ -27,13 +27,12 @@ def letter_frequency_distribution(iterable: Iterable[str], max_word_length: int)
 
     distribution = {}  # type: Dict[str, List[int]]
     for letter in string.ascii_lowercase:
-        distribution[letter] = [0] * (1+max_word_length)
+        distribution[letter] = [0] * max_word_length
 
     for (letter, position), count in counter.items():
         current = distribution[letter]
-        update = ([0] * (1+max_word_length))
+        update = [0] * max_word_length
         update[position] = count
-        update[max_word_length] = count
         distribution[letter] = [i + j for i, j in zip(current, update)]
 
     return distribution
@@ -42,7 +41,6 @@ def letter_frequency_distribution(iterable: Iterable[str], max_word_length: int)
 def rank_word_popularity(word: str, frequency_table: Dict[str, List[int]]) -> int:
     score = 0
     for position, letter in enumerate(word):
-        bonus_multiplier = frequency_table[letter][-1]
         letter_score = frequency_table[letter][position]
         score += max(1, letter_score)
 
