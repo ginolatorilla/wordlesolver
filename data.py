@@ -1,8 +1,6 @@
-'''This module has some stuff in it.
-This module can do this and that, and many many more.
-If you think there's no need to describe this in detail, just remove this line and the one before.
+'''Functions for getting English words suitable for Wordle
 
-Copyright (c) 2021 Your Company's Name, or you
+Copyright (c) 2021 Gino Latorilla
 '''
 from email.generator import Generator
 import logging
