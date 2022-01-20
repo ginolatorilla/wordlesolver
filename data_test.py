@@ -33,6 +33,11 @@ def test_frequency_table_should_return_dict_of_letter_distribution_structs(mocke
                                                    data.WORDLE_MAX_WORLD_LENGTH)).is_equal_to(LETTER_FREQ_TABLE)
 
 
+def test_rank_word_popularity_should_return_score_if_word_has_many_common_words() -> None:
+    assert_that(data.rank_word_popularity('three', LETTER_FREQ_TABLE)).is_equal_to(1 + 1 + 1 + 8 + 4)
+    assert_that(data.rank_word_popularity('vents', LETTER_FREQ_TABLE)).is_equal_to(1 + 4 + 1 + 1 + 1)
+
+
 WORD_LIST = dedent('''\
     one's
     two
