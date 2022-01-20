@@ -2,7 +2,6 @@
 
 Copyright (c) 2021 Gino Latorilla
 '''
-from email.generator import Generator
 import logging
 from typing import Iterator
 
