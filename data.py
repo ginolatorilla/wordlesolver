@@ -44,7 +44,7 @@ def rank_word_popularity(word: str, frequency_table: Dict[str, List[int]]) -> in
     for position, letter in enumerate(word):
         bonus_multiplier = frequency_table[letter][-1]
         letter_score = frequency_table[letter][position]
-        score += max(1, bonus_multiplier * letter_score)
+        score += max(1, letter_score)
 
     return score
 
