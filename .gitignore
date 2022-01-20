@@ -1,0 +1,8 @@
+.venv
+.vscode
+**/__pycache__
+*.egg-info
+reqlib-metadata
+.coverage
+.mypy_cache
+.pytest_cache
