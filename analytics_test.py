@@ -5,6 +5,15 @@ from pytest_mock import MockerFixture
 
 import analytics
 
+POSSIBLE_GAME_RESPONSES = {
+    'all wrong': 'wwwww',
+    'all correct': 'ccccc',
+    'all misplaced': 'mmmmm',
+    'some wrong': 'wcccc',
+    'some correct': 'cwwww',
+    'mixed': 'wcmcw',
+}
+
 
 @pytest.fixture
 def predictor(mocker: MockerFixture) -> analytics.Predictor:
@@ -29,13 +38,38 @@ def test_Predictor_predict_wordle_should_give_random_popular_words_without_repea
             assert_that(WORDBANK[word]).is_greater_than_or_equal_to(MEAN_RANK)
 
 
+@pytest.mark.parametrize(
+    'game_response',
+    (pytest.param(response,
+                  id=name) for (name,
+                                response) in POSSIBLE_GAME_RESPONSES.items())
+)
 def test_Predictor_calibrate_should_remove_guessed_word_from_its_wordbank(
     predictor: analytics.Predictor,
-    mocker: MockerFixture
+    game_response: str
 ) -> None:
     predictor.wordbank['cares'] = 999
-    predictor.calibrate('cares', 'dont-care')
+    predictor.calibrate('cares', game_response)
     assert_that(predictor.wordbank).does_not_contain('cares')
+
+
+@pytest.mark.parametrize(
+    'game_response',
+    (
+        pytest.param(response,
+                     id=name) for (name,
+                                   response) in POSSIBLE_GAME_RESPONSES.items() if 'wrong' in name or name == 'mixed'
+    )
+)
+def test_Predictor_calibrate_should_remove_words_with_wrong_letters_from_its_wordbank(
+    predictor: analytics.Predictor,
+    game_response: str
+) -> None:
+    predictor.wordbank['caves'] = 999
+    predictor.wordbank['cares'] = 998
+    predictor.calibrate('cares', game_response)
+    assert_that(predictor.wordbank).does_not_contain('cares')
+    assert_that(predictor.wordbank).does_not_contain('caves')
 
 
 WORDBANK = {

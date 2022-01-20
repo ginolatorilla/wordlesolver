@@ -3,11 +3,13 @@
 Copyright (c) 2021 Gino Latorilla
 '''
 
+from operator import contains
 from statistics import mean
 from typing import List
 import data
 from itertools import tee, islice
 from random import shuffle
+import re
 
 
 class Predictor:
@@ -39,4 +41,13 @@ class Predictor:
         return top_50_results[:min(3, len(top_50_results))]
 
     def calibrate(self, guess: str, game_response: str) -> None:
-        del self.wordbank[guess]
+        wrong_letters = ''.join(set(letter for letter, state in zip(guess, game_response) if state == 'w'))
+
+        def contains_wrong_letters(word: str) -> bool:
+            return any(letter in word for letter in wrong_letters)
+
+        self.wordbank = {
+            word: rank
+            for word,
+            rank in self.wordbank.items() if not (contains_wrong_letters(word) or guess == word)
+        }
