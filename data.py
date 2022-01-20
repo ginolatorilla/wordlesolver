@@ -15,4 +15,10 @@ def read_wamerican() -> Iterator[str]:
             yield line.rstrip()
 
 
+def read_wordle_dictionary() -> Iterator[str]:
+    for word in read_wamerican():
+        if len(word) == 5 and word.isalpha() and word.islower():
+            yield word
+
+
 _PATH_TO_AMERICAN_ENGLISH_DICTIONARY = '/usr/share/dict/american-english'
