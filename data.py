@@ -14,7 +14,7 @@ def read_wamerican() -> Iterator[str]:
 
 def read_wordle_dictionary() -> Iterator[str]:
     for word in read_wamerican():
-        if len(word) == 5 and word.isalpha() and word.islower():
+        if len(word) == 5 and word.isalpha() and word.islower() and word.isascii():
             yield word
         else:
             logging.debug(f'"{word}" is not a suitable word for Wordle, so I will drop it.')
