@@ -37,3 +37,6 @@ class Predictor:
         shuffle(top_50_results)
 
         return top_50_results[:min(3, len(top_50_results))]
+
+    def calibrate(self, guess: str, game_response: str) -> None:
+        del self.wordbank[guess]
