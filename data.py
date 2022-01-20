@@ -27,12 +27,13 @@ def letter_frequency_distribution(iterable: Iterable[str], max_word_length: int)
 
     distribution = {}  # type: Dict[str, List[int]]
     for letter in string.ascii_lowercase:
-        distribution[letter] = [0] * max_word_length
+        distribution[letter] = [0] * (1 + max_word_length)
 
     for (letter, position), count in counter.items():
         current = distribution[letter]
-        update = ([0] * max_word_length)
+        update = ([0] * (1 + max_word_length))
         update[position] = count
+        update[max_word_length] = count
         distribution[letter] = [i + j for i, j in zip(current, update)]
 
     return distribution
