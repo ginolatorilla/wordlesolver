@@ -125,7 +125,7 @@ def test_Predictor_calibrate_should_raise_error_with_unknown_guesswords(
         predictor.calibrate(guess, 'ccccw')
 
 
-def test_Predictor_calibrate_should_raise_error_after_6th_round(predictor: analytics.Predictor, ) -> None:
+def test_Predictor_calibrate_should_raise_error_after_6th_round(predictor: analytics.Predictor) -> None:
     for _ in range(6):
         predictor.calibrate('soles', 'wwwww')
         predictor.wordbank['soles'] = 0
@@ -134,9 +134,20 @@ def test_Predictor_calibrate_should_raise_error_after_6th_round(predictor: analy
         predictor.calibrate('oxbow', 'ccccw')
 
 
-def test_Predictor_calibrate_should_raise_victory_if_all_letters_are_correct(predictor: analytics.Predictor, ) -> None:
+def test_Predictor_calibrate_should_raise_victory_if_all_letters_are_correct(predictor: analytics.Predictor) -> None:
     with pytest.raises(analytics.Victory):
         predictor.calibrate('oxbow', 'ccccc')
+
+
+def test_Predictor_calibrate_should_keep_words_with_correct_letters_if_a_repeat_is_in_wrong_position(
+    predictor: analytics.Predictor
+) -> None:
+    predictor.wordbank = {
+        'crick': 1,
+        'prick': 2,
+    }
+    predictor.calibrate('crick', 'wcccc')
+    assert_that(predictor.wordbank).contains('prick')
 
 
 WORDBANK = {

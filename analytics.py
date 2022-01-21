@@ -80,9 +80,15 @@ class Predictor:
         if guess not in self.wordbank:
             raise ValueError(f'Your guess "{guess}" is not a valid English word.')
 
-        wrong_letters = ''.join(set(letter for letter, state in zip(guess, game_response) if state == 'w'))
         misplaced_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'm'}
         correct_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'c'}
+        wrong_letters = ''.join(
+            set(
+                letter for letter,
+                state in zip(guess,
+                             game_response) if state == 'w' and letter not in correct_letters.values()
+            )
+        )
 
         def contains_wrong_letters(word: str) -> bool:
             if any(letter in word for letter in wrong_letters):
