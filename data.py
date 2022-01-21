@@ -2,7 +2,6 @@
 
 Copyright (c) 2021 Gino Latorilla
 '''
-import logging
 import string
 from collections import Counter
 from typing import Dict, Iterable, Iterator, List
@@ -18,8 +17,6 @@ def read_wordle_dictionary() -> Iterator[str]:
     for word in read_wamerican():
         if len(word) == WORDLE_MAX_WORLD_LENGTH and word.isalpha() and word.islower() and word.isascii():
             yield word
-        else:
-            logging.debug(f'"{word}" is not a suitable word for Wordle, so I will drop it.')
 
 
 def letter_frequency_distribution(iterable: Iterable[str], max_word_length: int) -> Dict[str, List[int]]:
