@@ -3,13 +3,11 @@
 Copyright (c) 2021 Gino Latorilla
 '''
 
-from operator import contains
 from statistics import mean
 from typing import List
 import data
 from itertools import tee, islice
 from random import shuffle
-import re
 
 
 class Predictor:
@@ -28,21 +26,27 @@ class Predictor:
                            reverse=True)
         }
 
+        self.round = 1
+        self.highest_rank = max(self.wordbank.values())
+
     def predict_wordle(self) -> List[str]:
+        if self.round == 1:
+            popularity_cutoff = int(mean(self.wordbank.values()))
 
-        popularity_cutoff = int(mean(self.wordbank.values()))
+            def unique_and_popular(word: str) -> bool:
+                return len(word) == len(set(word)) and self.wordbank[word] >= popularity_cutoff
 
-        def unique_and_popular(word: str) -> bool:
-            return len(word) == len(set(word)) and self.wordbank[word] >= popularity_cutoff
+            top_50_results = [word for word in islice(filter(unique_and_popular, self.wordbank), 50)]
+            shuffle(top_50_results)
 
-        top_50_results = [word for word in islice(filter(unique_and_popular, self.wordbank), 50)]
-        shuffle(top_50_results)
-
-        return top_50_results[:min(3, len(top_50_results))]
+            return top_50_results[:min(3, len(top_50_results))]
+        else:
+            return list(islice(self.wordbank, 3))
 
     def calibrate(self, guess: str, game_response: str) -> None:
         wrong_letters = ''.join(set(letter for letter, state in zip(guess, game_response) if state == 'w'))
         misplaced_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'm'}
+        correct_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'c'}
 
         def contains_wrong_letters(word: str) -> bool:
             return any(letter in word for letter in wrong_letters)
@@ -50,9 +54,21 @@ class Predictor:
         def contains_misplaced_letters(word: str) -> bool:
             return any(word[position] == misplaced_letter for position, misplaced_letter in misplaced_letters.items())
 
-        self.wordbank = {
-            word: rank
-            for word,
-            rank in self.wordbank.items()
+        def promote_words_with_correct_letters(word: str, rank: int) -> int:
+            bonus = sum(1 for position, correct_letter in correct_letters.items() if word[position] == correct_letter)
+            if bonus:
+                return round(self.highest_rank + bonus*rank/10)
+            else:
+                return rank
+
+        wordbank = {
+            word: promote_words_with_correct_letters(word,
+                                                     rank)
+            for (word,
+                 rank) in self.wordbank.items()
             if not (contains_wrong_letters(word) or contains_misplaced_letters(word) or guess == word)
         }
+
+        self.wordbank = {word: rank for word, rank in sorted(wordbank.items(), key=lambda pair: pair[1], reverse=True)}
+        self.highest_rank = max(self.wordbank.values())
+        self.round += 1

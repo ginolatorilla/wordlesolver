@@ -80,6 +80,16 @@ def test_Predictor_calibrate_should_remove_words_with_misplaced_letters(predicto
     assert_that(predictor.wordbank).does_not_contain('caves')
 
 
+def test_Predictor_calibrate_should_prioritise_words_with_correct_letters(predictor: analytics.Predictor) -> None:
+    assert_that(predictor.round).is_equal_to(1)
+
+    predictor.calibrate('harpy', 'cccww')
+    predictions = predictor.predict_wordle()
+
+    assert_that(predictor.round).is_equal_to(2)
+    assert_that(predictions).starts_with('hares')
+
+
 WORDBANK = {
     'sades': 4045,
     'sages': 4025,
