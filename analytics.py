@@ -8,13 +8,18 @@ from typing import List
 import data
 from itertools import tee, islice
 from random import shuffle
+import logging
+
+log = logging.getLogger('wordlesolver')
+
 
 class EndGameError(BaseException):
     pass
 
+
 class Predictor:
 
-    def __init__(self) -> None:
+    def __init__(self, output_size: int = 3) -> None:
         it1, it2, it3 = tee(data.read_wordle_dictionary(), 3)
         self.letter_frequency_distribution = data.letter_frequency_distribution(it1, data.WORDLE_MAX_WORLD_LENGTH)
 
@@ -28,8 +33,11 @@ class Predictor:
                            reverse=True)
         }
 
+        log.info(f'Wordbank prepared with {len(self.wordbank)} words.')
+
         self.round = 1
         self.highest_rank = max(self.wordbank.values())
+        self.output_size = output_size
 
     def predict_wordle(self) -> List[str]:
         if self.round == 1:
@@ -41,9 +49,9 @@ class Predictor:
             top_50_results = [word for word in islice(filter(unique_and_popular, self.wordbank), 50)]
             shuffle(top_50_results)
 
-            return top_50_results[:min(3, len(top_50_results))]
+            return top_50_results[:min(self.output_size, len(top_50_results))]
         else:
-            return list(islice(self.wordbank, 3))
+            return list(islice(self.wordbank, self.output_size))
 
     def calibrate(self, guess: str, game_response: str) -> None:
         if self.round > 6:
