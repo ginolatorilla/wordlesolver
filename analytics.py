@@ -56,6 +56,7 @@ class Predictor:
 
         def promote_words_with_correct_letters(word: str, rank: int) -> int:
             bonus = sum(1 for position, correct_letter in correct_letters.items() if word[position] == correct_letter)
+            bonus += sum(1 for letter in misplaced_letters.values() if letter in word)
             if bonus:
                 return round(self.highest_rank + bonus*rank/10)
             else:

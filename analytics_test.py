@@ -90,6 +90,15 @@ def test_Predictor_calibrate_should_prioritise_words_with_correct_letters(predic
     assert_that(predictions).starts_with('hares')
 
 
+def test_Predictor_calibrate_should_prioritise_words_with_correct_and_misplaced_letters(
+    predictor: analytics.Predictor
+) -> None:
+    predictor.calibrate('soles', 'cmmcc')
+    predictions = predictor.predict_wordle()
+
+    assert_that(predictions).starts_with('sloes')
+
+
 WORDBANK = {
     'sades': 4045,
     'sages': 4025,
