@@ -7,7 +7,7 @@ import logging
 from itertools import islice, tee
 from random import shuffle
 from statistics import mean
-from typing import List
+from typing import List, Dict
 
 import data
 
@@ -46,9 +46,10 @@ class Predictor:
         self.round = 1
         self.highest_rank = max(self.wordbank.values())
         self.output_size = output_size
+        self.previous_result = ''
 
     def predict_wordle(self) -> List[str]:
-        if self.round == 1:
+        if self.round == 1 or self.previous_result == 'wwwww':
             popularity_cutoff = int(mean(self.wordbank.values()))
 
             def unique_and_popular(word: str) -> bool:
@@ -131,7 +132,11 @@ class Predictor:
                  rank) in self.wordbank.items()
             if not (contains_wrong_letters(word) or contains_misplaced_letters(word) or guess == word)
         }
+        wordbank = {word: rank for word, rank in sorted(wordbank.items(), key=lambda pair: pair[1], reverse=True)}
+        self._update(wordbank, game_response)
 
-        self.wordbank = {word: rank for word, rank in sorted(wordbank.items(), key=lambda pair: pair[1], reverse=True)}
-        self.highest_rank = max(self.wordbank.values())
+    def _update(self, wordbank: Dict[str, int], game_response: str) -> None:
         self.round += 1
+        self.wordbank = wordbank
+        self.highest_rank = max(self.wordbank.values())
+        self.previous_result = game_response

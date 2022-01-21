@@ -39,6 +39,15 @@ def test_Predictor_predict_wordle_should_give_random_popular_words_without_repea
             assert_that(WORDBANK[word]).is_greater_than_or_equal_to(MEAN_RANK)
 
 
+def test_Predictor_predict_wordle_should_give_random_popular_words_without_repeating_letters_if_previous_round_is_busted(
+    predictor: analytics.Predictor,
+    mocker: MockerFixture
+) -> None:
+    predictor.calibrate('infix', 'wwwww')
+    prediction = predictor.predict_wordle()[0]
+    assert_that(prediction).does_not_contain_duplicates()
+
+
 @pytest.mark.parametrize(
     'game_response',
     (pytest.param(response,
