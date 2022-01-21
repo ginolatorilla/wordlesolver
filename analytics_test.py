@@ -1,4 +1,5 @@
 from statistics import mean
+
 import pytest
 from assertpy import assert_that
 from pytest_mock import MockerFixture
@@ -131,6 +132,7 @@ def test_Predictor_calibrate_should_raise_error_after_6th_round(predictor: analy
 
     with pytest.raises(analytics.EndGameError):
         predictor.calibrate('oxbow', 'ccccw')
+
 
 def test_Predictor_calibrate_should_raise_victory_if_all_letters_are_correct(predictor: analytics.Predictor, ) -> None:
     with pytest.raises(analytics.Victory):

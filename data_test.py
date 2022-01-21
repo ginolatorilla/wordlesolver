@@ -1,7 +1,6 @@
 import string
 from textwrap import dedent
 
-import pytest
 from assertpy import assert_that
 from pytest_mock import MockerFixture
 
