@@ -150,6 +150,15 @@ def test_Predictor_calibrate_should_keep_words_with_correct_letters_if_a_repeat_
     assert_that(predictor.wordbank).contains('prick')
 
 
+def test_Predictor_calibrate_should_prioritise_words_with_repeating_letters_less_often(
+    predictor: analytics.Predictor
+) -> None:
+    predictor.calibrate('bares', 'ccmcc')
+    predictions = predictor.predict_wordle()
+    for i in range(3):
+        assert_that(predictions[i]).does_not_contain_duplicates()
+
+
 WORDBANK = {
     'soles': 4155,
     'sades': 4045,

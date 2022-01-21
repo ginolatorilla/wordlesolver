@@ -61,7 +61,7 @@ class Predictor:
 
             return top_50_results[:min(self.output_size, len(top_50_results))]
         else:
-            log.info('Here are the top 50 words for this round:')
+            log.info('Here are the top 50 or so words for this round:')
             log.info(' '.join(islice(self.wordbank, 50)))
 
             return list(islice(self.wordbank, self.output_size))
@@ -99,7 +99,10 @@ class Predictor:
 
         def contains_misplaced_letters(word: str) -> bool:
             if any(word[position] == misplaced_letter for position, misplaced_letter in misplaced_letters.items()):
-                repr_misplaced_letters = ''.join(l if p in misplaced_letters else '_' for p, l in enumerate(word))
+                repr_misplaced_letters = ''.join(
+                    l if p in misplaced_letters and l == guess[p] else '_' for p,
+                    l in enumerate(word)
+                )
                 log.debug(f'🗑️  {word} has misplaced letters {repr_misplaced_letters}. Dropped!')
 
                 return True
@@ -109,8 +112,14 @@ class Predictor:
         def promote_words_with_correct_letters(word: str, rank: int) -> int:
             bonus = sum(1 for position, correct_letter in correct_letters.items() if word[position] == correct_letter)
             bonus += sum(1 for letter in misplaced_letters.values() if letter in word)
+
             if bonus:
-                log.debug(f'🎖️  {word}: from {rank} ➡️ {(new_rank:= round(self.highest_rank + bonus*rank/10))}')
+                if len(word) > len(set(word)):
+                    new_rank = round(self.highest_rank - bonus*rank/10)
+                    log.debug(f'🥈 {word}: from {rank} ➡️ {new_rank} (has repeating letters)')
+                else:
+                    new_rank = round(self.highest_rank + bonus*rank/10)
+                    log.debug(f'🎖️  {word}: from {rank} ➡️ {new_rank}')
                 return new_rank
             else:
                 return rank
