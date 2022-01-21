@@ -124,6 +124,14 @@ def test_Predictor_calibrate_should_raise_error_with_unknown_guesswords(
         predictor.calibrate(guess, 'ccccc')
 
 
+def test_Predictor_calibrate_should_raise_error_after_6th_round(predictor: analytics.Predictor, ) -> None:
+    for word, _ in zip(WORDBANK, range(6)):
+        predictor.calibrate(word, 'ccccc')
+
+    with pytest.raises(RuntimeError):
+        predictor.calibrate('oxbow', 'ccccc')
+
+
 WORDBANK = {
     'soles': 4155,
     'sades': 4045,
