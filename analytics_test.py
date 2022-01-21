@@ -42,7 +42,7 @@ def test_Predictor_predict_wordle_should_give_random_popular_words_without_repea
     'game_response',
     (pytest.param(response,
                   id=name) for (name,
-                                response) in POSSIBLE_GAME_RESPONSES.items())
+                                response) in POSSIBLE_GAME_RESPONSES.items() if name != 'all correct')
 )
 def test_Predictor_calibrate_should_remove_guessed_word_from_its_wordbank(
     predictor: analytics.Predictor,
@@ -121,14 +121,19 @@ def test_Predictor_calibrate_should_raise_error_with_unknown_guesswords(
     guess: str
 ) -> None:
     with pytest.raises(ValueError):
-        predictor.calibrate(guess, 'ccccc')
+        predictor.calibrate(guess, 'ccccw')
 
 
 def test_Predictor_calibrate_should_raise_error_after_6th_round(predictor: analytics.Predictor, ) -> None:
-    for word, _ in zip(WORDBANK, range(6)):
-        predictor.calibrate(word, 'ccccc')
+    for _ in range(6):
+        predictor.calibrate('soles', 'wwwww')
+        predictor.wordbank['soles'] = 0
 
     with pytest.raises(analytics.EndGameError):
+        predictor.calibrate('oxbow', 'ccccw')
+
+def test_Predictor_calibrate_should_raise_victory_if_all_letters_are_correct(predictor: analytics.Predictor, ) -> None:
+    with pytest.raises(analytics.Victory):
         predictor.calibrate('oxbow', 'ccccc')
 
 

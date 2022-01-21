@@ -16,6 +16,8 @@ log = logging.getLogger('wordlesolver')
 class EndGameError(BaseException):
     pass
 
+class Victory(BaseException):
+    pass
 
 class Predictor:
 
@@ -56,6 +58,9 @@ class Predictor:
     def calibrate(self, guess: str, game_response: str) -> None:
         if self.round > 6:
             raise EndGameError()
+
+        if game_response == 'ccccc':
+            raise Victory()
 
         if not all(letter in 'wmc' for letter in game_response):
             raise ValueError(f'{game_response=} must only contain "c", "m", or "w".')
