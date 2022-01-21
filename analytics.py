@@ -4,6 +4,7 @@ Copyright (c) 2021 Gino Latorilla
 '''
 
 from statistics import mean
+import string
 from typing import List
 import data
 from itertools import tee, islice
@@ -44,6 +45,11 @@ class Predictor:
             return list(islice(self.wordbank, 3))
 
     def calibrate(self, guess: str, game_response: str) -> None:
+        if not all(letter in 'wmc' for letter in game_response):
+            raise ValueError('Invalid characters in game_response')
+        if len(game_response) != 5:
+            raise ValueError('game_response must be 5 characters long')
+
         wrong_letters = ''.join(set(letter for letter, state in zip(guess, game_response) if state == 'w'))
         misplaced_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'm'}
         correct_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'c'}

@@ -94,6 +94,27 @@ def test_Predictor_calibrate_should_prioritise_words_with_correct_and_misplaced_
     assert_that(predictions).starts_with('sloes')
 
 
+@pytest.mark.parametrize(
+    'game_response',
+    (
+        pytest.param(response,
+                     id=name) for (name,
+                                   response) in {
+                                       'empty': '',
+                                       'short': 'ccc',
+                                       'long': 'cccccc',
+                                       'invalid letters': 'vwxyz'
+                                   }.items()
+    )
+)
+def test_Predictor_calibrate_should_raise_error_with_invalid_game_response(
+    predictor: analytics.Predictor,
+    game_response: str
+) -> None:
+    with pytest.raises(ValueError):
+        predictor.calibrate('cares', game_response)
+
+
 WORDBANK = {
     'sades': 4045,
     'sages': 4025,
