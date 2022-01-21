@@ -116,10 +116,10 @@ class Predictor:
             if bonus:
                 if len(word) > len(set(word)):
                     new_rank = round(self.highest_rank - bonus*rank/10)
-                    log.debug(f'🥈 {word}: from {rank} ➡️ {new_rank} (has repeating letters)')
+                    log.debug(f'🥈 {word}: from {rank} → {new_rank} (has repeating letters)')
                 else:
                     new_rank = round(self.highest_rank + bonus*rank/10)
-                    log.debug(f'🎖️  {word}: from {rank} ➡️ {new_rank}')
+                    log.debug(f'🥇 {word}: from {rank} → {new_rank}')
                 return new_rank
             else:
                 return rank
