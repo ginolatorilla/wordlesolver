@@ -128,7 +128,7 @@ def test_Predictor_calibrate_should_raise_error_after_6th_round(predictor: analy
     for word, _ in zip(WORDBANK, range(6)):
         predictor.calibrate(word, 'ccccc')
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(analytics.EndGameError):
         predictor.calibrate('oxbow', 'ccccc')
 
 

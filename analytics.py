@@ -4,12 +4,13 @@ Copyright (c) 2021 Gino Latorilla
 '''
 
 from statistics import mean
-import string
 from typing import List
 import data
 from itertools import tee, islice
 from random import shuffle
 
+class EndGameError(BaseException):
+    pass
 
 class Predictor:
 
@@ -46,7 +47,7 @@ class Predictor:
 
     def calibrate(self, guess: str, game_response: str) -> None:
         if self.round > 6:
-            raise RuntimeError('Game has already ended.')
+            raise EndGameError()
 
         if not all(letter in 'wmc' for letter in game_response):
             raise ValueError(f'{game_response=} must only contain "c", "m", or "w".')
