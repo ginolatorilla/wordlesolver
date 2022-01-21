@@ -3,6 +3,7 @@
 Copyright (c) 2021 Gino Latorilla
 '''
 
+from calendar import c
 import logging
 from itertools import islice, tee
 from random import shuffle
@@ -68,6 +69,24 @@ class Predictor:
             return list(islice(self.wordbank, self.output_size))
 
     def calibrate(self, guess: str, game_response: str) -> None:
+        self._screen_inputs(guess, game_response)
+
+        misplaced_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'm'}
+        correct_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'c'}
+        wrong_letters = ''.join(
+            set(
+                letter for letter,
+                state in zip(guess,
+                             game_response) if state == 'w' and letter not in correct_letters.values()
+            )
+        )
+
+        self._reduce_wordbank(wrong_letters, misplaced_letters, guess)
+        self._promote_words(correct_letters, misplaced_letters)
+        self._sort_words_by_highest_rank_first()
+        self._refresh_current_game_state(game_response)
+
+    def _screen_inputs(self, guess: str, game_response: str) -> None:
         if self.round > 6:
             raise EndGameError()
 
@@ -81,15 +100,7 @@ class Predictor:
         if guess not in self.wordbank:
             raise ValueError(f'Your guess "{guess}" is not a valid English word.')
 
-        misplaced_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'm'}
-        correct_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'c'}
-        wrong_letters = ''.join(
-            set(
-                letter for letter,
-                state in zip(guess,
-                             game_response) if state == 'w' and letter not in correct_letters.values()
-            )
-        )
+    def _reduce_wordbank(self, wrong_letters: str, misplaced_letters: Dict[int, str], guess: str) -> None:
 
         def contains_wrong_letters(word: str) -> bool:
             if any(letter in word for letter in wrong_letters):
@@ -110,9 +121,19 @@ class Predictor:
             else:
                 return False
 
+        self.wordbank = {
+            word: rank
+            for (word,
+                 rank) in self.wordbank.items()
+            if not (contains_wrong_letters(word) or contains_misplaced_letters(word) or guess == word)
+        }
+
+    def _promote_words(self, correct_letters: Dict[int, str], misplaced_letters: Dict[int, str]) -> None:
+
         def promote_words_with_correct_letters(word: str, rank: int) -> int:
-            bonus = sum(1 for position, correct_letter in correct_letters.items() if word[position] == correct_letter)
-            bonus += sum(1 for letter in misplaced_letters.values() if letter in word)
+            bonus = sum(1 for position,
+                        correct_letter in correct_letters.items() if word[position] == correct_letter
+                        ) + sum(1 for letter in misplaced_letters.values() if letter in word)
 
             if bonus:
                 if len(word) > len(set(word)):
@@ -125,18 +146,19 @@ class Predictor:
             else:
                 return rank
 
-        wordbank = {
-            word: promote_words_with_correct_letters(word,
-                                                     rank)
-            for (word,
-                 rank) in self.wordbank.items()
-            if not (contains_wrong_letters(word) or contains_misplaced_letters(word) or guess == word)
-        }
-        wordbank = {word: rank for word, rank in sorted(wordbank.items(), key=lambda pair: pair[1], reverse=True)}
-        self._update(wordbank, game_response)
+        for word in self.wordbank:
+            self.wordbank[word] = promote_words_with_correct_letters(word, self.wordbank[word])
 
-    def _update(self, wordbank: Dict[str, int], game_response: str) -> None:
+    def _sort_words_by_highest_rank_first(self) -> None:
+        self.wordbank = {
+            word: rank
+            for word,
+            rank in sorted(self.wordbank.items(),
+                           key=lambda pair: pair[1],
+                           reverse=True)
+        }
+
+    def _refresh_current_game_state(self, game_response: str) -> None:
         self.round += 1
-        self.wordbank = wordbank
         self.highest_rank = max(self.wordbank.values())
         self.previous_result = game_response
