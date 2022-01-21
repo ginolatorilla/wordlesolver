@@ -46,9 +46,11 @@ class Predictor:
 
     def calibrate(self, guess: str, game_response: str) -> None:
         if not all(letter in 'wmc' for letter in game_response):
-            raise ValueError('Invalid characters in game_response')
+            raise ValueError(f'{game_response=} must only contain "c", "m", or "w".')
         if len(game_response) != 5:
-            raise ValueError('game_response must be 5 characters long')
+            raise ValueError(f'{game_response=} must be 5 characters long.')
+        if guess not in self.wordbank:
+            raise ValueError(f'{guess=} is not a valid English word.')
 
         wrong_letters = ''.join(set(letter for letter, state in zip(guess, game_response) if state == 'w'))
         misplaced_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'm'}

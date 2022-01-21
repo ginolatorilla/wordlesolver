@@ -115,7 +115,17 @@ def test_Predictor_calibrate_should_raise_error_with_invalid_game_response(
         predictor.calibrate('cares', game_response)
 
 
+@pytest.mark.parametrize('guess', {'jacks', 'cover', 'proxy'})
+def test_Predictor_calibrate_should_raise_error_with_unknown_guesswords(
+    predictor: analytics.Predictor,
+    guess: str
+) -> None:
+    with pytest.raises(ValueError):
+        predictor.calibrate(guess, 'ccccc')
+
+
 WORDBANK = {
+    'soles': 4155,
     'sades': 4045,
     'sages': 4025,
     'cares': 4017,
@@ -135,6 +145,7 @@ WORDBANK = {
     'cases': 3832,
     'manes': 3831,
     'poles': 3831,
+    'harpy': 1947,
     'offal': 583,
     'abuzz': 552,
     'affix': 523,
