@@ -33,7 +33,7 @@ def test_Predictor_predict_wordle_should_give_random_popular_words_without_repea
     assert_that(first_predictions).is_not_equal_to(second_predictions)
 
     for predictions in (first_predictions, second_predictions):
-        assert_that(predictions).is_length(predictor.output_size)
+        assert_that(predictions).is_length(predictor._output_size)
         for word in predictions:
             assert_that(word).does_not_contain_duplicates()
             assert_that(WORDBANK[word]).is_greater_than_or_equal_to(MEAN_RANK)

@@ -29,12 +29,12 @@ class Predictor:
         self._prepare_wordbank()
 
         self.round = 1
-        self.highest_rank = max(self.wordbank.values())
-        self.output_size = output_size
-        self.previous_result = ''
+        self._highest_rank = max(self.wordbank.values())
+        self._output_size = output_size
+        self._previous_result = ''
 
     def predict_wordle(self) -> List[str]:
-        if self.round == 1 or self.previous_result == 'wwwww':
+        if self.round == 1 or self._previous_result == 'wwwww':
             popularity_cutoff = int(mean(self.wordbank.values()))
 
             def unique_and_popular(word: str) -> bool:
@@ -45,12 +45,12 @@ class Predictor:
             log.info(' '.join(top_50_results))
             shuffle(top_50_results)
 
-            return top_50_results[:min(self.output_size, len(top_50_results))]
+            return top_50_results[:min(self._output_size, len(top_50_results))]
         else:
             log.info('Here are the top 50 or so words for this round:')
             log.info(' '.join(islice(self.wordbank, 50)))
 
-            return list(islice(self.wordbank, self.output_size))
+            return list(islice(self.wordbank, self._output_size))
 
     def calibrate(self, guess: str, game_response: str) -> None:
         self._screen_inputs(guess, game_response)
@@ -140,10 +140,10 @@ class Predictor:
 
             if bonus:
                 if len(word) > len(set(word)):
-                    new_rank = round(self.highest_rank - bonus*rank/10)
+                    new_rank = round(self._highest_rank - bonus*rank/10)
                     log.debug(f'🥈 {word}: from {rank} → {new_rank} (has repeating letters)')
                 else:
-                    new_rank = round(self.highest_rank + bonus*rank/10)
+                    new_rank = round(self._highest_rank + bonus*rank/10)
                     log.debug(f'🥇 {word}: from {rank} → {new_rank}')
                 return new_rank
             else:
@@ -163,5 +163,5 @@ class Predictor:
 
     def _refresh_current_game_state(self, game_response: str) -> None:
         self.round += 1
-        self.highest_rank = max(self.wordbank.values())
-        self.previous_result = game_response
+        self._highest_rank = max(self.wordbank.values())
+        self._previous_result = game_response
