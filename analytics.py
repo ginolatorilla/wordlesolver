@@ -26,23 +26,7 @@ class Victory(BaseException):
 class Predictor:
 
     def __init__(self, output_size: int = 3) -> None:
-        it1, it2, it3 = tee(data.read_wordle_dictionary(), 3)
-        self.letter_frequency_distribution = data.letter_frequency_distribution(it1, data.WORDLE_MAX_WORLD_LENGTH)
-
-        ranked_it = map(lambda word: data.rank_word_popularity(word, self.letter_frequency_distribution), it2)
-        self.wordbank = {
-            word: rank
-            for word,
-            rank in sorted(zip(it3,
-                               ranked_it),
-                           key=lambda pair: pair[1],
-                           reverse=True)
-        }
-
-        log.info(f'Wordbank prepared with {len(self.wordbank)} words.')
-        log.debug(f'word\trank')
-        for word, rank in self.wordbank.items():
-            log.debug(f'{word}\t{rank}')
+        self._prepare_wordbank()
 
         self.round = 1
         self.highest_rank = max(self.wordbank.values())
@@ -85,6 +69,25 @@ class Predictor:
         self._promote_words(correct_letters, misplaced_letters)
         self._sort_words_by_highest_rank_first()
         self._refresh_current_game_state(game_response)
+
+    def _prepare_wordbank(self) -> None:
+        it1, it2, it3 = tee(data.read_wordle_dictionary(), 3)
+        self.letter_frequency_distribution = data.letter_frequency_distribution(it1, data.WORDLE_MAX_WORLD_LENGTH)
+
+        ranked_it = map(lambda word: data.rank_word_popularity(word, self.letter_frequency_distribution), it2)
+        self.wordbank = {
+            word: rank
+            for word,
+            rank in sorted(zip(it3,
+                               ranked_it),
+                           key=lambda pair: pair[1],
+                           reverse=True)
+        }
+
+        log.info(f'Wordbank prepared with {len(self.wordbank)} words.')
+        log.debug(f'word\trank')
+        for word, rank in self.wordbank.items():
+            log.debug(f'{word}\t{rank}')
 
     def _screen_inputs(self, guess: str, game_response: str) -> None:
         if self.round > 6:
