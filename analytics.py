@@ -3,12 +3,12 @@
 Copyright (c) 2021 Gino Latorilla
 '''
 
-from calendar import c
 import logging
+from collections import defaultdict
 from itertools import islice, tee
 from random import shuffle
 from statistics import mean
-from typing import List, Dict
+from typing import Dict, List, Set
 
 import data
 
@@ -32,6 +32,9 @@ class Predictor:
         self._highest_rank = max(self.wordbank.values())
         self._output_size = output_size
         self._previous_result = ''
+        self._wrong_letters = set({})  # type: Set[str]
+        self._misplaced_letters = defaultdict(set)  # type: Dict[str,Set[int]]
+        self._correct_letters = defaultdict(set)  # type: Dict[str, Set[int]]
 
     def predict_wordle(self) -> List[str]:
         if self.round == 1 or self._previous_result == 'wwwww':
@@ -54,19 +57,10 @@ class Predictor:
 
     def calibrate(self, guess: str, game_response: str) -> None:
         self._screen_inputs(guess, game_response)
+        self._parse_game_response(guess, game_response)
 
-        misplaced_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'm'}
-        correct_letters = {position: guess[position] for position, state in enumerate(game_response) if state == 'c'}
-        wrong_letters = ''.join(
-            set(
-                letter for letter,
-                state in zip(guess,
-                             game_response) if state == 'w' and letter not in correct_letters.values()
-            )
-        )
-
-        self._reduce_wordbank(wrong_letters, misplaced_letters, guess)
-        self._promote_words(correct_letters, misplaced_letters)
+        self._reduce_wordbank(guess)
+        self._promote_words()
         self._sort_words_by_highest_rank_first()
         self._refresh_current_game_state(game_response)
 
@@ -103,43 +97,94 @@ class Predictor:
         if guess not in self.wordbank:
             raise ValueError(f'Your guess "{guess}" is not a valid English word.')
 
-    def _reduce_wordbank(self, wrong_letters: str, misplaced_letters: Dict[int, str], guess: str) -> None:
+    def _parse_game_response(self, guess: str, game_response: str) -> None:
+        for position, state in enumerate(game_response):
+            if state == 'w':
+                self._wrong_letters.add(guess[position])
+            elif state == 'c':
+                self._correct_letters[guess[position]].add(position)
+            elif state == 'm':
+                self._misplaced_letters[guess[position]].add(position)
+
+        for letter in {l for l in self._wrong_letters if l in self._correct_letters}:
+            if letter in self._correct_letters:
+                log.debug(f'Duplicate letter is correct; will discard {letter} from set of wrong letters.')
+                self._wrong_letters.remove(letter)
+
+    def _reduce_wordbank(self, guess: str) -> None:
+
+        def _render_correct_letters() -> str:
+            mask = ['_'] * 5
+            for letter, positions in self._correct_letters.items():
+                for position in positions:
+                    mask[position] = letter
+            return ''.join(mask)
+
+        render_correct_letters = _render_correct_letters()
 
         def contains_wrong_letters(word: str) -> bool:
-            if any(letter in word for letter in wrong_letters):
-                log.debug(f'🗑️  {word} contains wrong letters {wrong_letters}. Dropped!')
-                return True
-            else:
-                return False
-
-        def contains_misplaced_letters(word: str) -> bool:
-            if any(word[position] == misplaced_letter for position, misplaced_letter in misplaced_letters.items()):
-                repr_misplaced_letters = ''.join(
-                    l if p in misplaced_letters and l == guess[p] else '_' for p,
-                    l in enumerate(word)
+            if any(letter in word for letter in self._wrong_letters):
+                rendered_word_with_mask = ''.join(
+                    '_' if letter not in self._wrong_letters else letter for letter in word
                 )
-                log.debug(f'🗑️  {word} has misplaced letters {repr_misplaced_letters}. Dropped!')
-
+                log.debug(f'🗑️  {word} contains wrong letters: {rendered_word_with_mask}. Dropped!')
                 return True
             else:
                 return False
+
+        def contains_letters_in_positions_that_are_for_correct_ones(word: str) -> bool:
+            if all(mask == '_' or letter == mask for letter, mask in zip(word, render_correct_letters)):
+                return True
+            else:
+                log.debug(f'🗑️  {word} does not contain enough correct letters: {render_correct_letters}. Dropped!')
+                return False
+
+        def contains_letters_in_misplaced_positions(word: str) -> bool:
+            if any(
+                letter in self._misplaced_letters and position in self._misplaced_letters[letter] for position,
+                letter in enumerate(word)
+            ):
+                rendered_word_with_mask = ''.join('_' if l not in self._misplaced_letters else l for l in word)
+                log.debug(f'🗑️  {word} contains misplaced letters: {rendered_word_with_mask}. Dropped')
+                return True
+            else:
+                return False
+
+        def should_be_kept_for_the_next_round(word: str) -> bool:
+            if word == guess:
+                log.debug(f'🗑️  {word} is what you guessed with. Dropped')
+                return False
+
+            if contains_wrong_letters(word):
+                return False
+
+            if self._correct_letters:
+                if not contains_letters_in_positions_that_are_for_correct_ones(word):
+                    return False
+
+            if contains_letters_in_misplaced_positions(word):
+                return False
+
+            log.debug(f'✔️  {word} looks good enough for the next round.')
+            return True
 
         self.wordbank = {
             word: rank
             for (word,
-                 rank) in self.wordbank.items()
-            if not (contains_wrong_letters(word) or contains_misplaced_letters(word) or guess == word)
+                 rank) in self.wordbank.items() if should_be_kept_for_the_next_round(word)
         }
 
-    def _promote_words(self, correct_letters: Dict[int, str], misplaced_letters: Dict[int, str]) -> None:
+    def _promote_words(self) -> None:
 
         def promote_words_with_correct_letters(word: str, rank: int) -> int:
-            bonus = sum(1 for position,
-                        correct_letter in correct_letters.items() if word[position] == correct_letter
-                        ) + sum(1 for letter in misplaced_letters.values() if letter in word)
+            bonus = sum(
+                1 for position,
+                letter in enumerate(word)
+                if letter in self._correct_letters and position in self._correct_letters[letter]
+            ) + sum(1 for letter in word if letter in self._misplaced_letters)
 
             if bonus:
-                if len(word) > len(set(word)):
+                if len(word) > len(set(word)) and not any(letter in self._misplaced_letters for letter in word):
                     new_rank = round(self._highest_rank - bonus*rank/10)
                     log.debug(f'🥈 {word}: from {rank} → {new_rank} (has repeating letters)')
                 else:
@@ -163,5 +208,5 @@ class Predictor:
 
     def _refresh_current_game_state(self, game_response: str) -> None:
         self.round += 1
-        self._highest_rank = max(self.wordbank.values())
+        self._highest_rank = max(self.wordbank.values() or [0])
         self._previous_result = game_response

@@ -163,9 +163,8 @@ def test_Predictor_calibrate_should_prioritise_words_with_repeating_letters_less
     predictor: analytics.Predictor
 ) -> None:
     predictor.calibrate('bares', 'ccmcc')
-    predictions = predictor.predict_wordle()
-    for i in range(3):
-        assert_that(predictions[i]).does_not_contain_duplicates()
+    for prediction in predictor.predict_wordle():
+        assert_that(prediction).does_not_contain_duplicates()
 
 
 WORDBANK = {
@@ -189,6 +188,7 @@ WORDBANK = {
     'cases': 3832,
     'manes': 3831,
     'poles': 3831,
+    'bakes': 3695,
     'harpy': 1947,
     'offal': 583,
     'abuzz': 552,
