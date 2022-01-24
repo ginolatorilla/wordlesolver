@@ -4,11 +4,12 @@ Copyright (c) 2021 Gino Latorilla
 '''
 
 import logging
-from collections import defaultdict
+from collections import defaultdict, Counter
 from itertools import islice, tee
 from random import shuffle
 from statistics import mean
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Pattern
+import re
 
 import data
 
@@ -32,9 +33,11 @@ class Predictor:
         self._highest_rank = max(self.wordbank.values())
         self._output_size = output_size
         self._previous_result = ''
+        self._target_word_has_repeating_letters = False
         self._wrong_letters = defaultdict(set)  # type: Dict[str, Set[int]]
         self._misplaced_letters = defaultdict(set)  # type: Dict[str,Set[int]]
         self._correct_letters = defaultdict(set)  # type: Dict[str, Set[int]]
+        self._unique_letters = set()  # type: Set[str]
 
     def predict_wordle(self) -> List[str]:
         if self.round == 1 or self._previous_result == 'wwwww':
@@ -58,6 +61,7 @@ class Predictor:
     def calibrate(self, guess: str, game_response: str) -> None:
         self._screen_inputs(guess, game_response)
         self._parse_game_response(guess, game_response)
+        self._predict_if_target_has_repeating_letters()
 
         self._reduce_wordbank(guess)
         self._promote_words()
@@ -99,88 +103,132 @@ class Predictor:
 
     def _parse_game_response(self, guess: str, game_response: str) -> None:
         for position, state in enumerate(game_response):
+            letter = guess[position]
+
             if state == 'w':
-                self._wrong_letters[guess[position]].add(position)
+                if letter in self._correct_letters:
+                    log.debug(f'Repeat letter {letter} attempted but it only appears once in the target.')
+                    self._unique_letters.add(letter)
+                elif letter in self._misplaced_letters:
+                    log.debug(f'Letter {letter} is already misplaced.')
+                else:
+                    self._wrong_letters[letter].add(position)
+
             elif state == 'c':
-                self._correct_letters[guess[position]].add(position)
+                if letter in self._wrong_letters:
+                    log.debug(f'Removing wrong letter {letter} because we found it to be actually correct.')
+                    del self._wrong_letters[letter]
+
+                if letter in self._misplaced_letters:
+                    log.debug(f'Removing {letter} from set of misplaced letters.')
+                    del self._misplaced_letters[letter]
+
+                self._correct_letters[letter].add(position)
+
             elif state == 'm':
-                self._misplaced_letters[guess[position]].add(position)
+                self._misplaced_letters[letter].add(position)
+
+    def _predict_if_target_has_repeating_letters(self) -> bool:
+        occurrence_counter = Counter({letter: len(indexes) for letter, indexes in self._correct_letters.items()})
+
+        repeaters = [letter for letter, count in occurrence_counter.items() if count > 1]
+        if repeaters:
+            log.debug(f'Target word has repeating letters: {"".join(repeaters)}.')
+
+        return bool(repeaters)
 
     def _reduce_wordbank(self, guess: str) -> None:
 
-        def _render_correct_letters() -> str:
-            mask = ['_'] * 5
-            for letter, positions in self._correct_letters.items():
-                for position in positions:
-                    mask[position] = letter
-            return ''.join(mask)
-
-        render_correct_letters = _render_correct_letters()
-        render_wrong_letters = ', '.join(self._wrong_letters)
-
-        def contains_wrong_letters(word: str) -> bool:
-            rendered_word_with_mask = ''.join('_' if letter not in self._wrong_letters else letter for letter in word)
-
-            if any(letter in word and letter not in self._correct_letters for letter in self._wrong_letters):
-                log.debug(
-                    f'ℹ️  {word} contains wrong letters, but some letters were identified as correct earlier (possibly repeating): {render_wrong_letters}.'
-                )
-                return True
-            elif any(
-                letter in self._wrong_letters and position in self._wrong_letters[letter] for position,
-                letter in enumerate(word)
-            ):
-                log.debug(f'ℹ️  {word} contains wrong letters: {render_wrong_letters}.')
-                return True
-            else:
-                log.debug(f'ℹ️  {word} does not have wrong letters: {rendered_word_with_mask}.')
-                return False
-
-        def contains_letters_in_positions_that_are_for_correct_ones(word: str) -> bool:
-            if all(mask == '_' or letter == mask for letter, mask in zip(word, render_correct_letters)):
-                log.debug(f'ℹ️  {word} contains all correct letters: {render_correct_letters}.')
-                return True
-            else:
-                log.debug(f'ℹ️  {word} does not contain enough correct letters: {render_correct_letters}.')
-                return False
-
-        def contains_letters_in_misplaced_positions(word: str) -> bool:
-            rendered_word_with_mask = ''.join('_' if l not in self._misplaced_letters else l for l in word)
-            if any(
-                letter in self._misplaced_letters and position in self._misplaced_letters[letter] for position,
-                letter in enumerate(word)
-            ):
-                log.debug(f'ℹ️  {word} contains misplaced letters: {rendered_word_with_mask}.')
-                return True
-            else:
-                log.debug(f'ℹ️  {word} does not have misplaced letters: {rendered_word_with_mask}.')
-                return False
-
-        def should_be_kept_for_the_next_round(word: str) -> bool:
+        def should_keep_word_for_the_next_round(word: str) -> bool:
             if word == guess:
-                log.debug(f'🗑️  {word} is what you guessed with. Dropped')
+                log.debug(f'🗑️ {word} is what you guessed with.')
                 return False
 
-            if contains_wrong_letters(word):
-                log.debug(f'🗑️  {word}: Dropped')
-                return False
-
-            if self._correct_letters:
-                if not contains_letters_in_positions_that_are_for_correct_ones(word):
-                    log.debug(f'🗑️  {word}: Dropped')
+            if self._target_word_has_repeating_letters:
+                if not has_repeating_letters(word):
+                    log.debug(f'🗑️ {word} does not have repeating letters.')
                     return False
 
-            if contains_letters_in_misplaced_positions(word):
-                log.debug(f'🗑️  {word}: Dropped')
+            if has_repeating_letters_that_should_be_unique(word):
+                log.debug(f'🗑️ {word} has repeating letters that should be unique: {", ".join(self._unique_letters)}')
                 return False
 
-            log.debug(f'✔️  {word} looks good enough for the next round.')
+            if self._wrong_letters:
+                if has_wrong_letters(word):
+                    log.debug(f'🗑️ {word} has wrong letters: {", ".join(self._wrong_letters)}.')
+                    return False
+
+            if self._correct_letters:
+                if not has_all_correct_letters(word):
+                    log.debug(
+                        f'🗑️ {word} does not have all correct letters: {match_all_correct_letters.pattern[1:-1].replace(".", "_")}.'
+                    )
+                    return False
+
+            if self._misplaced_letters:
+                if has_any_misplaced_letters(word):
+                    log.debug(f'🗑️ {word} has misplaced letters: {", ".join(self._misplaced_letters)}.')
+                    return False
+
+            log.debug(f'✔️ {word} looks good enough for the next round.')
             return True
+
+        def has_repeating_letters(word: str) -> bool:
+            if are_all_letters_unique := len(word) == len(set(word)):
+                log.debug(f'{word} has unique letters.')
+            else:
+                count_letters = Counter(word)
+                log.debug(
+                    f'{word} has repeating letters: {", ".join(letter for letter, count in count_letters.items() if count > 1)}.'
+                )
+
+            return not are_all_letters_unique
+
+        def has_repeating_letters_that_should_be_unique(word: str) -> bool:
+            return any(word.count(letter) > 1 for letter in self._unique_letters)
+
+        def has_wrong_letters(word: str) -> bool:
+            return bool(set(self._wrong_letters).intersection(set(word)))
+
+        def recompile_correct_letters_regex() -> Pattern[str]:
+            pattern = ['.'] * 5
+
+            for correct_letter, indexes in self._correct_letters.items():
+                for i in indexes:
+                    pattern[i] = correct_letter
+
+            return re.compile(f'^{"".join(pattern)}$')
+
+        match_all_correct_letters = recompile_correct_letters_regex()
+
+        def has_all_correct_letters(word: str) -> bool:
+            return match_all_correct_letters.match(word) is not None
+
+        def recompile_misplaced_letters_regex() -> Pattern[str]:
+            reverse_dict = defaultdict(set)  # type: Dict[int, Set[str]]
+
+            for misplaced_letter, indexes in self._misplaced_letters.items():
+                for i in indexes:
+                    reverse_dict[i].add(misplaced_letter)
+
+            pattern = set()  # type: Set[str]
+
+            for index, misplaced_letters in reverse_dict.items():
+                subpattern = ['.'] * 5
+                subpattern[index] = f'[{"".join(misplaced_letters)}]'
+                pattern.add(''.join(subpattern))
+
+            return re.compile(f'^{"|".join(pattern)}$')
+
+        match_any_misplaced_letter = recompile_misplaced_letters_regex()
+
+        def has_any_misplaced_letters(word: str) -> bool:
+            return match_any_misplaced_letter.match(word) is not None
 
         self.wordbank = {
             word: rank
             for (word,
-                 rank) in self.wordbank.items() if should_be_kept_for_the_next_round(word)
+                 rank) in self.wordbank.items() if should_keep_word_for_the_next_round(word)
         }
 
     def _promote_words(self) -> None:

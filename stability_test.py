@@ -12,9 +12,9 @@ pytestmark = pytest.mark.slow
 
 
 def test_stability() -> None:
-    target = 'proxy'
+    target = 'knoll'
     test_results = []
-    trials = 100
+    trials = 1000
 
     for i in range(trials):
         if i % 100 == 0:
@@ -90,16 +90,19 @@ def mimic_game_response(guess: str, target: str) -> str:
     target_letters_counter = Counter(target)
 
     def responsecode(position: int, guess_letter: str, target_letter: str) -> str:
+        result = ''
         if guess_letter == target_letter:
-            return 'c'
+            result = 'c'
         elif guess_letter != target_letter and guess_letter not in target:
-            return 'w'
+            result = 'w'
         elif guess_letter != target_letter and guess_letter in target_letters_counter:
-            target_letters_counter[guess_letter] -= 1
-            if target_letters_counter[guess_letter] <= 0:
-                del target_letters_counter[guess_letter]
-            return 'm'
+            result = 'm'
         else:
-            return 'w'
+            result = 'w'
+
+        target_letters_counter[guess_letter] -= 1
+        if target_letters_counter[guess_letter] <= 0:
+            del target_letters_counter[guess_letter]
+        return result
 
     return ''.join(responsecode(p, gl, target[p]) for p, gl in enumerate(guess))
