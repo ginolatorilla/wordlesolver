@@ -83,23 +83,19 @@ def test_stability() -> None:
 
 
 def mimic_game_response(guess: str, target: str) -> str:
+    target_letters_counter = Counter(target)
 
-    def responsecode(guess_letter: str, target_letter: str) -> str:
+    def responsecode(position: int, guess_letter: str, target_letter: str) -> str:
         if guess_letter == target_letter:
             return 'c'
         elif guess_letter != target_letter and guess_letter not in target:
             return 'w'
-        elif guess_letter != target_letter and guess_letter in target and repeats_and_coincides_with_target(
-            guess_letter,
-            guess,
-            target
-        ):
-            return 'w'
-        else:
+        elif guess_letter != target_letter and guess_letter in target_letters_counter:
+            target_letters_counter[guess_letter] -= 1
+            if target_letters_counter[guess_letter] <= 0:
+                del target_letters_counter[guess_letter]
             return 'm'
+        else:
+            return 'w'
 
-    def repeats_and_coincides_with_target(letter: str, guess: str, target: str) -> bool:
-        positions = [p for p, l in enumerate(guess) if letter == l]
-        return any(target[p] == letter for p in positions)
-
-    return ''.join(responsecode(gl, tl) for gl, tl in zip(guess, target))
+    return ''.join(responsecode(p, gl, target[p]) for p, gl in enumerate(guess))
