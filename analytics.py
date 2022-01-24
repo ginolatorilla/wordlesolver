@@ -32,7 +32,7 @@ class Predictor:
         self._highest_rank = max(self.wordbank.values())
         self._output_size = output_size
         self._previous_result = ''
-        self._wrong_letters = set({})  # type: Set[str]
+        self._wrong_letters = defaultdict(set)  # type: Dict[str, Set[int]]
         self._misplaced_letters = defaultdict(set)  # type: Dict[str,Set[int]]
         self._correct_letters = defaultdict(set)  # type: Dict[str, Set[int]]
 
@@ -100,16 +100,11 @@ class Predictor:
     def _parse_game_response(self, guess: str, game_response: str) -> None:
         for position, state in enumerate(game_response):
             if state == 'w':
-                self._wrong_letters.add(guess[position])
+                self._wrong_letters[guess[position]].add(position)
             elif state == 'c':
                 self._correct_letters[guess[position]].add(position)
             elif state == 'm':
                 self._misplaced_letters[guess[position]].add(position)
-
-        for letter in {l for l in self._wrong_letters if l in self._correct_letters}:
-            if letter in self._correct_letters:
-                log.debug(f'Duplicate letter is correct; will discard {letter} from set of wrong letters.')
-                self._wrong_letters.remove(letter)
 
     def _reduce_wordbank(self, guess: str) -> None:
 
@@ -121,33 +116,44 @@ class Predictor:
             return ''.join(mask)
 
         render_correct_letters = _render_correct_letters()
+        render_wrong_letters = ', '.join(self._wrong_letters)
 
         def contains_wrong_letters(word: str) -> bool:
-            if any(letter in word for letter in self._wrong_letters):
-                rendered_word_with_mask = ''.join(
-                    '_' if letter not in self._wrong_letters else letter for letter in word
+            rendered_word_with_mask = ''.join('_' if letter not in self._wrong_letters else letter for letter in word)
+
+            if any(letter in word and letter not in self._correct_letters for letter in self._wrong_letters):
+                log.debug(
+                    f'ℹ️  {word} contains wrong letters, but some letters were identified as correct earlier (possibly repeating): {render_wrong_letters}.'
                 )
-                log.debug(f'🗑️  {word} contains wrong letters: {rendered_word_with_mask}. Dropped!')
+                return True
+            elif any(
+                letter in self._wrong_letters and position in self._wrong_letters[letter] for position,
+                letter in enumerate(word)
+            ):
+                log.debug(f'ℹ️  {word} contains wrong letters: {render_wrong_letters}.')
                 return True
             else:
+                log.debug(f'ℹ️  {word} does not have wrong letters: {rendered_word_with_mask}.')
                 return False
 
         def contains_letters_in_positions_that_are_for_correct_ones(word: str) -> bool:
             if all(mask == '_' or letter == mask for letter, mask in zip(word, render_correct_letters)):
+                log.debug(f'ℹ️  {word} contains all correct letters: {render_correct_letters}.')
                 return True
             else:
-                log.debug(f'🗑️  {word} does not contain enough correct letters: {render_correct_letters}. Dropped!')
+                log.debug(f'ℹ️  {word} does not contain enough correct letters: {render_correct_letters}.')
                 return False
 
         def contains_letters_in_misplaced_positions(word: str) -> bool:
+            rendered_word_with_mask = ''.join('_' if l not in self._misplaced_letters else l for l in word)
             if any(
                 letter in self._misplaced_letters and position in self._misplaced_letters[letter] for position,
                 letter in enumerate(word)
             ):
-                rendered_word_with_mask = ''.join('_' if l not in self._misplaced_letters else l for l in word)
-                log.debug(f'🗑️  {word} contains misplaced letters: {rendered_word_with_mask}. Dropped')
+                log.debug(f'ℹ️  {word} contains misplaced letters: {rendered_word_with_mask}.')
                 return True
             else:
+                log.debug(f'ℹ️  {word} does not have misplaced letters: {rendered_word_with_mask}.')
                 return False
 
         def should_be_kept_for_the_next_round(word: str) -> bool:
@@ -156,13 +162,16 @@ class Predictor:
                 return False
 
             if contains_wrong_letters(word):
+                log.debug(f'🗑️  {word}: Dropped')
                 return False
 
             if self._correct_letters:
                 if not contains_letters_in_positions_that_are_for_correct_ones(word):
+                    log.debug(f'🗑️  {word}: Dropped')
                     return False
 
             if contains_letters_in_misplaced_positions(word):
+                log.debug(f'🗑️  {word}: Dropped')
                 return False
 
             log.debug(f'✔️  {word} looks good enough for the next round.')

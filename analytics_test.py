@@ -7,11 +7,11 @@ from pytest_mock import MockerFixture
 import analytics
 
 POSSIBLE_GAME_RESPONSES = {
-    'all wrong': 'wwwww',
-    'all correct': 'ccccc',
-    'all misplaced': 'mmmmm',
-    'some wrong': 'wcccc',
-    'some correct': 'cwwww',
+    'all_wrong': 'wwwww',
+    'all_correct': 'ccccc',
+    'all_misplaced': 'mmmmm',
+    'some_wrong': 'wcccc',
+    'some_correct': 'cwwww',
     'mixed': 'wcmcw',
 }
 
@@ -52,7 +52,7 @@ def test_Predictor_predict_wordle_should_give_random_popular_words_without_repea
     'game_response',
     (pytest.param(response,
                   id=name) for (name,
-                                response) in POSSIBLE_GAME_RESPONSES.items() if name != 'all correct')
+                                response) in POSSIBLE_GAME_RESPONSES.items() if name != 'all_correct')
 )
 def test_Predictor_calibrate_should_remove_guessed_word_from_its_wordbank(
     predictor: analytics.Predictor,
@@ -165,6 +165,15 @@ def test_Predictor_calibrate_should_prioritise_words_with_repeating_letters_less
     predictor.calibrate('bares', 'ccmcc')
     for prediction in predictor.predict_wordle():
         assert_that(prediction).does_not_contain_duplicates()
+
+
+def test_Predictor_calibrate_should_drop_words_with_repeating_letters_if_one_is_correct_and_the_other_isnt(
+    predictor: analytics.Predictor
+) -> None:
+    predictor.calibrate('soles', 'wwwcc')
+
+    for prediction in predictor.predict_wordle():
+        assert_that(prediction).matches('^[^s][^o][^l]es$')
 
 
 WORDBANK = {
