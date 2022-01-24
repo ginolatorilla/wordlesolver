@@ -125,17 +125,18 @@ class Predictor:
 
                 self._correct_letters[letter].add(position)
 
-            elif state == 'm':
+            #  elif state == 'm':
+            else:
                 self._misplaced_letters[letter].add(position)
 
-    def _predict_if_target_has_repeating_letters(self) -> bool:
+    def _predict_if_target_has_repeating_letters(self) -> None:
         occurrence_counter = Counter({letter: len(indexes) for letter, indexes in self._correct_letters.items()})
 
         repeaters = [letter for letter, count in occurrence_counter.items() if count > 1]
         if repeaters:
             log.debug(f'Target word has repeating letters: {"".join(repeaters)}.')
 
-        return bool(repeaters)
+        self._target_word_has_repeating_letters = bool(repeaters)
 
     def _reduce_wordbank(self, guess: str) -> None:
 

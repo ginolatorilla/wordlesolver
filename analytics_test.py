@@ -176,6 +176,42 @@ def test_Predictor_calibrate_should_drop_words_with_repeating_letters_if_one_is_
         assert_that(prediction).matches('^[^s][^o][^l]es$')
 
 
+def test_Predictor_calibrate_should_discard_wrong_letter_if_its_correct_earlier(
+    predictor: analytics.Predictor
+) -> None:
+    predictor.calibrate('sades', 'ccwcw')
+    assert_that(predictor.predict_wordle()).contains('saver')
+
+
+def test_Predictor_calibrate_should_discard_wrong_letter_if_its_misplaced_earlier(
+    predictor: analytics.Predictor
+) -> None:
+    predictor.calibrate('sades', 'mcwcw')
+
+    # Even if last 's' is "wrong", it can still satisfy the misplaced first 's'.
+    # The game can respond like this because it sees the first occurence of 's' before its other
+    # repetitions.
+    assert_that(predictor.predict_wordle()).contains('cases')
+
+
+def test_Predictor_calibrate_should_evict_misplaced_letter_if_it_becomes_correct(
+    predictor: analytics.Predictor
+) -> None:
+    predictor.calibrate('cares', 'mmmmm')
+    predictor.calibrate('shake', 'cwcwc')
+
+    assert_that(predictor.predict_wordle()).contains('scare')
+    # TODO: discard words that do not have misplaced letters that may be correct
+    # assert_that(predictor.predict_wordle()).does_not_contain('offal')
+
+
+def test_Predictor_calibrate_should_predict_target_with_repeating_letters_if_it_is_often_correct(
+    predictor: analytics.Predictor
+) -> None:
+    predictor.calibrate('saves', 'cwwcc')
+    assert_that(predictor.predict_wordle()[0]).contains_duplicates()
+
+
 WORDBANK = {
     'soles': 4155,
     'sades': 4045,
@@ -198,7 +234,10 @@ WORDBANK = {
     'manes': 3831,
     'poles': 3831,
     'bakes': 3695,
+    'saver': 2780,
+    'shake': 2061,
     'harpy': 1947,
+    'scare': 1945,
     'offal': 583,
     'abuzz': 552,
     'affix': 523,
