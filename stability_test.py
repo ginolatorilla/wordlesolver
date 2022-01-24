@@ -37,6 +37,10 @@ def test_stability() -> None:
                 print('x', end='', flush=True)
                 test_results.append({'guesses': guesses, 'responses': responses, 'result': 'fail'})
                 break
+            except BaseException:
+                print('!', end='', flush=True)
+                test_results.append({'guesses': guesses, 'responses': responses, 'result': 'fail'})
+                break
     print()
 
     console = Console()
