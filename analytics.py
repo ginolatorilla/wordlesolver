@@ -171,6 +171,10 @@ class Predictor:
                     log.debug(f'🗑️ {word} has misplaced letters: {", ".join(self._misplaced_letters)}.')
                     return False
 
+                if not has_enough_misplaced_letters(word):
+                    log.debug(f'🗑️ {word} does not have enough misplaced letters that might be correct in other arrangements: {", ".join(self._misplaced_letters)}.')
+                    return False
+
             log.debug(f'✔️ {word} looks good enough for the next round.')
             return True
 
@@ -225,6 +229,9 @@ class Predictor:
 
         def has_any_misplaced_letters(word: str) -> bool:
             return match_any_misplaced_letter.match(word) is not None
+
+        def has_enough_misplaced_letters(word: str) -> bool:
+            return set(word).issuperset(set(self._misplaced_letters))
 
         self.wordbank = {
             word: rank

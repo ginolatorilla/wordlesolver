@@ -197,12 +197,17 @@ def test_Predictor_calibrate_should_discard_wrong_letter_if_its_misplaced_earlie
 def test_Predictor_calibrate_should_evict_misplaced_letter_if_it_becomes_correct(
     predictor: analytics.Predictor
 ) -> None:
+    predictor.wordbank['secra'] = 1
     predictor.calibrate('cares', 'mmmmm')
-    predictor.calibrate('shake', 'cwcwc')
-
+    predictor.calibrate('secra', 'cmmcm')
     assert_that(predictor.predict_wordle()).contains('scare')
-    # TODO: discard words that do not have misplaced letters that may be correct
-    # assert_that(predictor.predict_wordle()).does_not_contain('offal')
+
+
+def test_Predictor_calibrate_should_drop_words_without_non_coincident_misplaced_letters(
+    predictor: analytics.Predictor
+) -> None:
+    predictor.calibrate('cares', 'mmmmm')
+    assert_that(predictor.wordbank).does_not_contain('offal')
 
 
 def test_Predictor_calibrate_should_predict_target_with_repeating_letters_if_it_is_often_correct(
@@ -235,7 +240,6 @@ WORDBANK = {
     'poles': 3831,
     'bakes': 3695,
     'saver': 2780,
-    'shake': 2061,
     'harpy': 1947,
     'scare': 1945,
     'offal': 583,
