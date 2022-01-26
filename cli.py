@@ -35,7 +35,7 @@ def main() -> int:
         MAX_ROUNDS = 6
 
         def pretty_round_counter() -> str:
-            blanks = '○ ' * max(0, MAX_ROUNDS - predictor.round - 1)
+            blanks = '○ ' * max(0, MAX_ROUNDS - predictor.round)
             cold = '[grey50]●[/] ' * max(0, predictor.round - 1)
             hot_colour = ('green', 'green', 'green', 'yellow', 'yellow', 'red')
             return cold + f'[{hot_colour[predictor.round - 1]}]●[/] ' + blanks.rstrip()
