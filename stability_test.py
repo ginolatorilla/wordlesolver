@@ -1,147 +1,122 @@
+from http.client import responses
 import sys
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, TimeoutError, as_completed
 from multiprocessing import Array
 from statistics import mean
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Iterable, Set, List, Collection, Union
+from dataclasses import dataclass
 
 import pytest
 import rich
 from assertpy import assert_that
 from rich.console import Console
-from rich.progress import Progress
+from rich.progress import Progress, track
 from rich.table import Table
 
 import analytics
 import data
 
 pytestmark = pytest.mark.slow
-sample_size = 100
+# sample_size = 10
 first_round_threshold = 50
 
-shared_process_state = Array('c', first_round_threshold * data.WORDLE_MAX_WORLD_LENGTH)
 error_console = Console(file=sys.stderr)
-targets = list(data.read_wordle_dictionary())[:sample_size]
-
-global_progress = Progress(console=error_console)
-overall_progress_id = global_progress.add_task('[bold cyan]Progress', total=first_round_threshold * len(targets))
-global_progress.start()
-
-
-@pytest.fixture
-def global_shared_state() -> None:
-    shared_process_state.value = b''
+targets = list(data.read_wordle_dictionary())
+shared_process_state = {
+    word: Array('c',
+                first_round_threshold * data.WORDLE_MAX_WORLD_LENGTH)
+    for word in track(targets,
+                      description='Preparing shared state',
+                      console=error_console)
+}
 
 
-@pytest.mark.parametrize('target_word', targets)
-def test_stability(target_word: str, global_shared_state: Any) -> None:
-    test_results = {}  # type: Dict[int, Dict[str, Any]]
+@dataclass
+class _TestResult:
+    game_id: int
+    target_word: str
+    success: bool
+    caught_error: Union[BaseException, None]
+    guesses: List[str]
+    responses: List[str]
+
+    def __hash__(self) -> int:
+        return hash(self.game_id)
+
+
+def test_stability() -> None:
+    intermediate_test_results = set({})  # type: Set[_TestResult]
 
     with ProcessPoolExecutor() as executor:
-        futures_to_test_id = {executor.submit(run_test, target_word): i for i in range(1, first_round_threshold + 1)}
+        futures_to_game_args = {
+            executor.submit(simulate_game,
+                            *(game_args := (i + 1,
+                                            target_word))): game_args
+            for target_word in targets for i in range(first_round_threshold)
+        }
 
-        for future in as_completed(futures_to_test_id):
-            global_progress.advance(overall_progress_id)
-            test_id = futures_to_test_id[future]
+        for future in track(
+            as_completed(futures_to_game_args),
+            total=len(futures_to_game_args),
+            console=error_console
+        ):
+            test_id, target_word = futures_to_game_args[future]
             try:
-                test_results[test_id] = future.result(timeout=1)
+                intermediate_test_results.add(r := future.result(timeout=1))
+                if not r.success:
+                    rich.print(':x:', end='')
             except TimeoutError as e:
-                test_results[test_id] = {'result': f'Error: {e}'}
+                intermediate_test_results.add(_TestResult(test_id, target_word, False, e, [], []))
 
-    summary = Table('Pass', 'Fail', 'Failure Rate', 'Average Round Length', title='Summary')
-    summary.add_row(
-        str(passing := sum(r["result"] == "pass" for r in test_results.values())),
-        str(failing := len(test_results.values()) - passing),
-        f'{(failure_rate := round(100 * failing / len(test_results.values()), 2))}%',
-        str(mean(len(r['guesses']) for r in test_results.values()))
-    )
-    rich.print(summary)
-
-    round_distribution = Table(
-        '1 Round',
-        '2 Rounds',
-        '3 Rounds',
-        '4 Rounds',
-        '5 Rounds',
-        '6 Rounds',
-        'Did not Finish',
-        title='Rounds Distribution'
-    )
-    rounds_counter = Counter(len(r['guesses']) for r in test_results.values())
-    round_distribution.add_row(*(str(rounds_counter[i]) for i in range(1, 8)))
-    rich.print(round_distribution)
-
-    report = Table(
-        '#',
-        'Rounds',
-        'Guesses',
-        'Responses',
-        'Result',
-        show_lines=True,
-        title=f'Test Results for "{target_word}"'
-    )
-    for i, r in sorted(test_results.items()):
-        guess_grid = Table.grid()
-        for g in r['guesses']:
-            guess_grid.add_row(g)
-
-        response_grid = Table.grid()
-        for re in r['responses']:
-            response_grid.add_row(re)
-
-        if r['result'] == 'pass':
-            result = 'Victory'
-        elif r['result'] == 'fail':
-            result = 'Did not Finish'
-        else:
-            result = r['result']
-
-        report.add_row(str(i), str(len(r['guesses'])), guess_grid, response_grid, result)
-    rich.print(report)
-
-    assert_that(failure_rate).is_close_to(0, 0.01)
+    summary = get_test_summary(intermediate_test_results)
+    print_report(sorted(intermediate_test_results, key=lambda tr: tr.game_id), summary)
+    assert_that(summary['failure_rate']).is_close_to(0, 0.01)
 
 
-def run_test(target: str) -> Dict[str, Any]:
+def simulate_game(game_id: int, target_word: str) -> _TestResult:
     predictor = analytics.Predictor()
     guesses = []
     responses = []
 
-    def encode_strings_to_shared_array(strings: Iterable[str]) -> None:
-        shared_process_state.value = b''
-        for word in strings:
-            shared_process_state.value += bytes(word, 'utf-8')
-
-    def decode_strings_from_shared_array(word_length: int = data.WORDLE_MAX_WORLD_LENGTH) -> Iterable[str]:
-        return [
-            shared_process_state.value[index:index + word_length].decode('utf-8')
-            for index in range(0,
-                               len(shared_process_state.value),
-                               word_length)
-        ]
-
     while True:
         try:
             if predictor.round == 1:
-                with shared_process_state.get_lock():
-                    starting_words = set(decode_strings_from_shared_array())
+                with shared_process_state[target_word].get_lock():
+                    starting_words = set(get_used_starting_words(target_word))
                     while (guess := predictor.predict_wordle()[0]) in starting_words:
-                        # rich.print(f'Drop [red]{guess}[/]; already used by another game.')
                         pass
                     starting_words.add(guess)
-                    encode_strings_to_shared_array(starting_words)
+                    store_used_starting_words(target_word, starting_words)
             else:
                 guess = predictor.predict_wordle()[0]
-            response = mimic_game_response(guess, target)
+
+            response = mimic_game_response(guess, target_word)
             guesses.append(guess)
             responses.append(response)
             predictor.calibrate(guess, response)
+
         except analytics.Victory:
-            return {'guesses': guesses, 'responses': responses, 'result': 'pass'}
+            return _TestResult(game_id, target_word, True, None, guesses, responses)
         except analytics.EndGameError:
-            return {'guesses': guesses, 'responses': responses, 'result': 'fail'}
+            return _TestResult(game_id, target_word, False, None, guesses, responses)
         except BaseException as e:
-            return {'guesses': guesses, 'responses': responses, 'result': f'Error: {e}'}
+            return _TestResult(game_id, target_word, False, e, guesses, responses)
+
+
+def store_used_starting_words(key: str, strings: Iterable[str]) -> None:
+    shared_process_state[key].value = b''
+    for word in strings:
+        shared_process_state[key].value += bytes(word, 'utf-8')
+
+
+def get_used_starting_words(key: str, word_length: int = data.WORDLE_MAX_WORLD_LENGTH) -> Set[str]:
+    return {
+        shared_process_state[key].value[index:index + word_length].decode('utf-8')
+        for index in range(0,
+                           len(shared_process_state[key].value),
+                           word_length)
+    }
 
 
 def mimic_game_response(guess: str, target: str) -> str:
@@ -164,3 +139,42 @@ def mimic_game_response(guess: str, target: str) -> str:
         return result
 
     return ''.join(responsecode(p, gl, target[p]) for p, gl in enumerate(guess))
+
+
+def get_test_summary(test_results: Collection[_TestResult]) -> Dict[str, float]:
+    return {
+        'pass': (npass := sum(1 if r.success else 0 for r in test_results)),
+        'fail': (nfail := len(test_results) - npass),
+        'failure_rate': 100 * nfail / len(test_results),
+        'average_round_length': mean(len(r.guesses) for r in test_results)
+    }
+
+
+def print_report(test_results: Collection[_TestResult], test_summary: Dict[str, float]) -> None:
+    summary = Table('Pass', 'Fail', 'Failure Rate', 'Average Round Length', title='Summary')
+    summary.add_row(*(str(v) for v in test_summary.values()))
+    rich.print(summary)
+
+    round_distribution = Table(*(f'{i + 1} Round' for i in range(6)), 'Did not Finish', title='Rounds Distribution')
+    rounds_counter = Counter(len(r.guesses) for r in test_results)
+    round_distribution.add_row(*(str(rounds_counter[i]) for i in range(1, 8)))
+    rich.print(round_distribution)
+
+    report = Table('Game #', 'Target Word', 'Rounds', 'Guesses', 'Responses', 'Result', show_lines=True)
+
+    for r in sorted(test_results, key=lambda r: r.game_id):
+        guess_grid = Table.grid()
+        for g in r.guesses:
+            guess_grid.add_row(g)
+
+        response_grid = Table.grid()
+        for re in r.responses:
+            response_grid.add_row(re)
+
+        result = 'Victory' if r.success else 'Did not Finish'
+        if r.caught_error:
+            result = f'Uncaught Exception: {r.caught_error}'
+
+        report.add_row(str(r.game_id), r.target_word, str(len(r.guesses)), guess_grid, response_grid, result)
+
+    rich.print(report)
