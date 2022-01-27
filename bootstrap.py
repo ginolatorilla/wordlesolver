@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Copyright (c) 2019 Gino Latorilla. All rights reserved.
+Copyright (c) 2022 Gino Latorilla. All rights reserved.
 """
 
 import subprocess

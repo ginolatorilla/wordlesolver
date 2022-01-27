@@ -1,6 +1,6 @@
 '''Functions for providing you gameplay guidance in Wordle.
 
-Copyright (c) 2021 Gino Latorilla
+Copyright (c) 2022 Gino Latorilla
 '''
 
 import logging
@@ -17,16 +17,23 @@ log = logging.getLogger('wordlesolver')
 
 
 class EndGameError(BaseException):
+    '''Worlde ends at 6 rounds. If you still need to play, then you've already lost.'''
     pass
 
 
 class Victory(BaseException):
+    '''analytics.Predictor will raise this 'error' if it knows that you've already won.'''
     pass
 
 
 class Predictor:
+    '''Ingests gameplay feedback and gives you the best solution to win your game.'''
 
     def __init__(self, output_size: int = 3) -> None:
+        '''Initialises a new analytics.Predictor object. By default, three words will be given, but you can
+        increase that by setting output_size.
+        '''
+
         self._prepare_wordbank()
 
         self.round = 1
@@ -40,6 +47,14 @@ class Predictor:
         self._unique_letters = set()  # type: Set[str]
 
     def predict_wordle(self) -> List[str]:
+        '''Returns a list of words that will give you a reasonable game outcome.
+
+        The first list this will give will be a selection of 3 random words from the top 50 'popular' words.
+        Subsequent lists will be popular words that apply to your game's current situation.
+
+        See also: Predictor.calibrate
+        '''
+
         if self.round == 1 or self._previous_result == 'wwwww':
             popularity_cutoff = int(mean(self.wordbank.values()))
 
@@ -59,6 +74,22 @@ class Predictor:
             return list(islice(self.wordbank, self._output_size))
 
     def calibrate(self, guess: str, game_response: str) -> None:
+        '''Adjusts the output of Predictor.predict_wordle based on your gameplay feedback.
+        You must provide the word that you guessed with, and how the game reacted to it.
+
+        'game_response' must be 5 letters long consisting of 'w', 'm', and 'c'.
+        'w' is when you placed a wrong letter, where it is highlighted grey by the game.
+        'm' is when you misplaced a letter, where it is highlighted orange, and 'c' for
+        correct ones which comes in green.
+
+        Raises ValueError when:
+
+        - 'game_response' is invalid.
+        - 'guess' is not an English word.
+        - 'guess' is not in your system's English dictionary.
+        - 'guess' is not good enough to play in the next round (e.g. it has more wrong letters).
+        '''
+
         self._screen_inputs(guess, game_response)
         self._parse_game_response(guess, game_response)
         self._predict_if_target_has_repeating_letters()
@@ -172,7 +203,9 @@ class Predictor:
                     return False
 
                 if not has_enough_misplaced_letters(word):
-                    log.debug(f'🗑️ {word} does not have enough misplaced letters that might be correct in other arrangements: {", ".join(self._misplaced_letters)}.')
+                    log.debug(
+                        f'🗑️ {word} does not have enough misplaced letters that might be correct in other arrangements: {", ".join(self._misplaced_letters)}.'
+                    )
                     return False
 
             log.debug(f'✔️ {word} looks good enough for the next round.')
