@@ -18,11 +18,11 @@ import analytics
 import data
 
 pytestmark = pytest.mark.slow
-# sample_size = 10
+sample_size = 0
 first_round_threshold = 50
 
 error_console = Console(file=sys.stderr)
-targets = list(data.read_wordle_dictionary())
+targets = list(data.read_wordle_dictionary()) if not sample_size else list(data.read_wordle_dictionary())[:sample_size]
 shared_process_state = {
     word: Array('c',
                 first_round_threshold * data.WORDLE_MAX_WORLD_LENGTH)
@@ -84,7 +84,7 @@ def test_stability() -> None:
                 try:
                     intermediate_test_results.add(r := future.result(timeout=1))
                     if not r.success:
-                        progress.update(failure_progress_id)
+                        progress.advance(failure_progress_id)
                 except TimeoutError as e:
                     intermediate_test_results.add(_TestResult(test_id, target_word, False, e, [], []))
 
