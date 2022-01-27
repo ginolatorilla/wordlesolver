@@ -1,17 +1,17 @@
-from http.client import responses
 import sys
 from collections import Counter
-from concurrent.futures import ProcessPoolExecutor, TimeoutError, as_completed
+from concurrent.futures import Future, ProcessPoolExecutor, TimeoutError, as_completed
+from dataclasses import dataclass
 from multiprocessing import Array
 from statistics import mean
-from typing import Any, Dict, Iterable, Set, List, Collection, Union
-from dataclasses import dataclass
+from typing import Collection, Dict, Iterable, List, Set, Tuple, Union
 
 import pytest
 import rich
 from assertpy import assert_that
 from rich.console import Console
-from rich.progress import Progress, track
+from rich.progress import Progress, track, BarColumn, TimeRemainingColumn, Task
+from rich.text import Text
 from rich.table import Table
 
 import analytics
@@ -27,8 +27,9 @@ shared_process_state = {
     word: Array('c',
                 first_round_threshold * data.WORDLE_MAX_WORLD_LENGTH)
     for word in track(targets,
-                      description='Preparing shared state',
-                      console=error_console)
+                      description='Preparing shared state...',
+                      console=error_console,
+                      transient=True)
 }
 
 
@@ -45,33 +46,51 @@ class _TestResult:
         return hash(self.game_id)
 
 
+class OptionalTimeRemainingColumn(TimeRemainingColumn):
+
+    def render(self, task: Task) -> Text:
+        return super().render(task) if not task.fields.get('hide_eta', False) else Text()
+
+
 def test_stability() -> None:
     intermediate_test_results = set({})  # type: Set[_TestResult]
 
     with ProcessPoolExecutor() as executor:
-        futures_to_game_args = {
-            executor.submit(simulate_game,
-                            *(game_args := (i + 1,
-                                            target_word))): game_args
-            for target_word in targets for i in range(first_round_threshold)
-        }
-
-        for future in track(
-            as_completed(futures_to_game_args),
-            total=len(futures_to_game_args),
+        with Progress(
+            '[progress.description]{task.description} {task.completed}/{task.total}',
+            BarColumn(),
+            "[progress.percentage]{task.percentage:>3.0f}%",
+            OptionalTimeRemainingColumn(),
             console=error_console
-        ):
-            test_id, target_word = futures_to_game_args[future]
-            try:
-                intermediate_test_results.add(r := future.result(timeout=1))
-                if not r.success:
-                    rich.print(':x:', end='')
-            except TimeoutError as e:
-                intermediate_test_results.add(_TestResult(test_id, target_word, False, e, [], []))
+        ) as progress:
+            futures_to_game_args = {}  # type: Dict[Future[_TestResult], Tuple[int, str]]
+            test_case_progress_id = progress.add_task(
+                'Preparing test cases',
+                total=len(targets) * first_round_threshold
+            )
 
-    summary = get_test_summary(intermediate_test_results)
-    print_report(sorted(intermediate_test_results, key=lambda tr: tr.game_id), summary)
-    assert_that(summary['failure_rate']).is_close_to(0, 0.01)
+            for target_word in targets:
+                for i in range(first_round_threshold):
+                    future = executor.submit(simulate_game, *(game_args := (i + 1, target_word)))
+                    futures_to_game_args[future] = game_args
+                    progress.advance(test_case_progress_id)
+
+            test_progress_id = progress.add_task('Running tests', total=len(futures_to_game_args))
+            failure_progress_id = progress.add_task('[red]Failures', total=len(futures_to_game_args), hide_eta=True)
+
+            for future in as_completed(futures_to_game_args):
+                progress.advance(test_progress_id)
+                test_id, target_word = futures_to_game_args[future]
+                try:
+                    intermediate_test_results.add(r := future.result(timeout=1))
+                    if not r.success:
+                        progress.update(failure_progress_id)
+                except TimeoutError as e:
+                    intermediate_test_results.add(_TestResult(test_id, target_word, False, e, [], []))
+
+        summary = get_test_summary(intermediate_test_results)
+        print_report(sorted(intermediate_test_results, key=lambda tr: tr.game_id), summary)
+        assert_that(summary['failure_rate']).is_close_to(0, 0.01)
 
 
 def simulate_game(game_id: int, target_word: str) -> _TestResult:
