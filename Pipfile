@@ -8,7 +8,7 @@ pytest = "*"
 pycodestyle = "*"
 yapf = "*"
 mypy = "*"
-yourproject = {editable = true, extras = ["pretty"], path = "."}
+wordlesolver = {editable = true, extras = ["pretty"], path = "."}
 pytest-cov = "*"
 pytest-mock = "*"
 assertpy = "*"
