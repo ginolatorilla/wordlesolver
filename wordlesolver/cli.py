@@ -18,8 +18,8 @@ from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.table import Table
 
-import analytics
-import data
+from wordlesolver import analytics
+from wordlesolver import data
 
 APP_NAME = Path(sys.argv[0]).stem
 log = logging.getLogger(APP_NAME)
