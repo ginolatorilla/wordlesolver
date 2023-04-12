@@ -4,7 +4,7 @@ from textwrap import dedent
 from assertpy import assert_that
 from pytest_mock import MockerFixture
 
-import data
+from wordlesolver import data
 
 
 def test_read_english_dictionary_should_return_iterator_to_wamerican_package(mocker: MockerFixture) -> None:

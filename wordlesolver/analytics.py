@@ -11,7 +11,7 @@ from statistics import mean
 from typing import Dict, List, Set, Pattern
 import re
 
-import data
+from wordlesolver import data
 
 log = logging.getLogger('wordlesolver')
 

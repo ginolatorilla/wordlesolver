@@ -1,6 +1,6 @@
 from cProfile import Profile
 
-import analytics
+from wordlesolver import analytics
 
 
 def test_Predictor_init_performance() -> None:

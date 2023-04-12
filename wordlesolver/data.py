@@ -65,4 +65,4 @@ def rank_word_popularity(word: str, frequency_table: Dict[str, List[int]]) -> in
 
 
 WORDLE_MAX_WORLD_LENGTH = 5
-_PATH_TO_AMERICAN_ENGLISH_DICTIONARY = '/usr/share/dict/american-english'
+_PATH_TO_AMERICAN_ENGLISH_DICTIONARY = '/usr/share/dict/words'

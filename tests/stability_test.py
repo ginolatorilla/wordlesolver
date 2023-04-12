@@ -14,8 +14,8 @@ from rich.progress import Progress, track, BarColumn, TimeRemainingColumn, Task
 from rich.text import Text
 from rich.table import Table
 
-import analytics
-import data
+from wordlesolver import analytics
+from wordlesolver import data
 
 pytestmark = pytest.mark.slow
 sample_size = 0
