@@ -58,6 +58,6 @@ There is no way to undo wrong inputs in the game; you just have to start all-ove
 ## Testing
 
 1. Make sure you have `pipenv` installed.
-2. `./bootstrap.py`
+2. `./bootstrap.py` or `pipenv install --dev`
 3. For unit tests: `pipenv run pytest --cov-report=html`
 4. For stability tests (4 to 5 hours): `pipenv run pytest --runslow -s > stability_tests.txt`
