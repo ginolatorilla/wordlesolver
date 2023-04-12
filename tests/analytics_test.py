@@ -4,7 +4,7 @@ import pytest
 from assertpy import assert_that
 from pytest_mock import MockerFixture
 
-import wordlesolver.analytics as analytics
+from wordlesolver import analytics
 
 POSSIBLE_GAME_RESPONSES = {
     'all_wrong': 'wwwww',
