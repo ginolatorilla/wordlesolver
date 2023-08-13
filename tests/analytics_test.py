@@ -4,7 +4,7 @@ import pytest
 from assertpy import assert_that
 from pytest_mock import MockerFixture
 
-from wordlesolver import analytics
+import wordlesolver.analytics as analytics
 
 POSSIBLE_GAME_RESPONSES = {
     'all_wrong': 'wwwww',
@@ -18,9 +18,9 @@ POSSIBLE_GAME_RESPONSES = {
 
 @pytest.fixture
 def predictor(mocker: MockerFixture) -> analytics.Predictor:
-    mocker.patch('data.read_wordle_dictionary', side_effect=WORDBANK.keys)
-    mocker.patch('data.rank_word_popularity', side_effect=WORDBANK.get)
-    mocker.patch('data.letter_frequency_distribution')
+    mocker.patch('wordlesolver.analytics.data.read_wordle_dictionary', side_effect=WORDBANK.keys)
+    mocker.patch('wordlesolver.analytics.data.rank_word_popularity', side_effect=WORDBANK.get)
+    mocker.patch('wordlesolver.analytics.data.letter_frequency_distribution')
     return analytics.Predictor()
 
 
