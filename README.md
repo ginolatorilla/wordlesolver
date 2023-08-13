@@ -55,9 +55,32 @@ You have to be either incredibly lucky or smart to do better than that.
 
 There is no way to undo wrong inputs in the game; you just have to start all-over again.
 
-## Testing
+## Development and testing
 
-1. Make sure you have `pipenv` installed.
-2. `./bootstrap.py` or `pipenv install --dev`
-3. For unit tests: `pipenv run pytest --cov-report=html`
-4. For stability tests (4 to 5 hours): `pipenv run pytest --runslow -s > stability_tests.txt`
+1. Prepare your development environment:
+
+    ```sh
+    git clone <this-project> && cd wordlesolver
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -U pip -e .[dev]
+    ```
+
+2. Run unit tests:
+
+    ```sh
+    pytest
+    ```
+
+3. Run unit tests code coverage:
+
+    ```sh
+    pytest --cov-report=html
+    open htmlcov/index.html
+    ```
+
+4. Run stability tests (4 to 5 hours):
+
+    ```sh
+    pipenv run pytest --runslow -s > stability_tests.txt
+    ```
