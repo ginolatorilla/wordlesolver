@@ -9,7 +9,7 @@ from wordlesolver import data
 
 def test_read_english_dictionary_should_return_iterator_to_wamerican_package(mocker: MockerFixture) -> None:
     mocker.patch(
-        'data.open',
+        'wordlesolver.data.open',
         mocker.mock_open(read_data=dedent('''\
             one
             two
@@ -21,12 +21,12 @@ def test_read_english_dictionary_should_return_iterator_to_wamerican_package(moc
 
 
 def test_read_wordle_dictionary_should_return_iterator_to_5_letter_english_words(mocker: MockerFixture) -> None:
-    mocker.patch('data.open', mocker.mock_open(read_data=WORD_LIST))
+    mocker.patch('wordlesolver.data.open', mocker.mock_open(read_data=WORD_LIST))
     assert_that([word for word in data.read_wordle_dictionary()]).is_equal_to(['three', 'seven'])
 
 
 def test_frequency_table_should_return_dict_of_letter_distribution_structs(mocker: MockerFixture) -> None:
-    mocker.patch('data.open', mocker.mock_open(read_data=WORD_LIST))
+    mocker.patch('wordlesolver.data.open', mocker.mock_open(read_data=WORD_LIST))
 
     assert_that(data.letter_frequency_distribution(data.read_wordle_dictionary(),
                                                    data.WORDLE_MAX_WORLD_LENGTH)).is_equal_to(LETTER_FREQ_TABLE)

@@ -18,7 +18,7 @@ from wordlesolver import analytics
 from wordlesolver import data
 
 pytestmark = pytest.mark.slow
-sample_size = 0
+sample_size = 100 # Should be less than `ulimit -n`
 first_round_threshold = 50
 
 error_console = Console(file=sys.stderr)
