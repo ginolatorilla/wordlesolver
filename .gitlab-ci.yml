@@ -1,0 +1,4 @@
+include:
+  - project: ginolatorilla/gitlab-ci-templates
+    file: /python.gitlab-ci.yml
+    ref: python
